@@ -5,6 +5,7 @@ import {
   runWhatIf,
   runScenario,
   listScenarios,
+  waitForBackend,
   type ScenarioInfo,
   type ScenarioRunResponse,
   type WhatIfRequest,
@@ -19,6 +20,7 @@ export function useSimulation() {
 
   const loadScenarios = useCallback(async () => {
     try {
+      await waitForBackend();
       const res = await listScenarios();
       setScenarios(res.scenarios);
     } catch {
@@ -28,6 +30,7 @@ export function useSimulation() {
 
   const fetchBaseline = useCallback(async () => {
     try {
+      await waitForBackend();
       const res = await runWhatIf({ temperature_delta: 0, rainfall_delta: 0 });
       setBaseline(res);
     } catch {

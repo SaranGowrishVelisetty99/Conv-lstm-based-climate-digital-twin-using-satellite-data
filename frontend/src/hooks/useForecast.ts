@@ -5,6 +5,7 @@ import {
   postRollingForecast,
   getLatestForecast,
   getLatestData,
+  waitForBackend,
   type RollingForecastResponse,
   type ForecastDay,
 } from '@/lib/api';
@@ -24,6 +25,7 @@ export function useForecast() {
     setLoading(true);
     setError(null);
     try {
+      await waitForBackend();
       const [forecastRes, baselineRes] = await Promise.all([
         postRollingForecast(days),
         getLatestData(),

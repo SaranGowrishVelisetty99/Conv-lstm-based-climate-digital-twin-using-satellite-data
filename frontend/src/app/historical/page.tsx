@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getHistoricalData, type HistoricalResponse } from '@/lib/api';
+import { getHistoricalData, waitForBackend, type HistoricalResponse } from '@/lib/api';
 import MetricsChart from '@/components/MetricsChart';
 import StatsCard from '@/components/StatsCard';
 import VariableSelector from '@/components/VariableSelector';
@@ -24,7 +24,8 @@ export default function HistoricalPage() {
   const fetchData = () => {
     setLoading(true);
     setError(null);
-    getHistoricalData(variable, lat, lon, 60)
+    waitForBackend()
+      .then(() => getHistoricalData(variable, lat, lon, 60))
       .then(setData)
       .catch((e: Error) => setError(e.message || 'Failed to load historical data'))
       .finally(() => setLoading(false));
@@ -64,21 +65,21 @@ export default function HistoricalPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       <div>
-        <h1 className="text-2xl font-bold text-white">Historical Data Explorer</h1>
-        <p className="text-slate-400 text-sm mt-1">Browse past observations from IMD gridded datasets</p>
+        <h1 className="text-xl font-bold text-white flex items-center gap-2">📜 Historical Data Explorer</h1>
+        <p className="text-slate-400 text-xs mt-0.5">Browse past weather observations for any location in Andhra Pradesh</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <StatsCard title="60-Day Avg" value={`${avg} ${variable === 'rainfall' ? 'mm' : '°C'}`} subtitle={variable} icon="📊" color="cyan" />
+      <div className="grid grid-cols-3 gap-2">
+        <StatsCard title="60-Day Avg" value={`${avg} ${variable === 'rainfall' ? 'mm' : '°C'}`} subtitle={VARIABLES.find(v => v.id === variable)?.label ?? variable} icon="📊" color="cyan" />
         <StatsCard title="Maximum" value={`${max} ${variable === 'rainfall' ? 'mm' : '°C'}`} subtitle="Peak value" icon="▲" color="rose" />
         <StatsCard title="Minimum" value={`${min} ${variable === 'rainfall' ? 'mm' : '°C'}`} subtitle="Lowest value" icon="▼" color="emerald" />
       </div>
 
       <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">Location & Variable</h2>
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">📍 Location & Variable</h2>
           <VariableSelector variables={VARIABLES} active={variable} onChange={setVariable} />
         </div>
         <div className="grid grid-cols-2 gap-4 mb-4">

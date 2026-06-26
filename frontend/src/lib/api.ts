@@ -34,6 +34,24 @@ const api = {
   },
 };
 
+export async function waitForBackend(
+  maxRetries = 30,
+  interval = 1000,
+  onRetry?: (attempt: number) => void
+): Promise<void> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const res = await fetch(`${API_BASE || ''}/api/health`);
+      if (res.ok) return;
+      onRetry?.(i + 1);
+    } catch {
+      onRetry?.(i + 1);
+    }
+    await new Promise((r) => setTimeout(r, interval));
+  }
+  throw new Error('Backend did not become available');
+}
+
 export interface ForecastDay {
   day: number;
   rainfall: number[][];

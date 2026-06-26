@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { getLatestForecast, getLatestData, getHealth, type RollingForecastResponse, type ForecastDay } from '@/lib/api';
+import { getLatestForecast, getLatestData, getHealth, waitForBackend, type RollingForecastResponse, type ForecastDay } from '@/lib/api';
 import { useSimulation } from '@/hooks/useSimulation';
 import WeatherMap from '@/components/WeatherMap';
 import StatsCard from '@/components/StatsCard';
@@ -20,11 +20,12 @@ function avg(data: number[][]) {
   return flat.reduce((a, b) => a + b, 0) / flat.length;
 }
 
-function SectionDivider({ label }: { label: string }) {
+function SectionDivider({ label, emoji }: { label: string; emoji?: string }) {
   return (
-    <div className="flex items-center gap-2 pt-1 pb-0.5">
+    <div className="flex items-center gap-2 pt-2 pb-1">
       <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
-      <span className="text-[9px] font-semibold text-slate-500 tracking-widest uppercase">{label}</span>
+      {emoji && <span className="text-xs">{emoji}</span>}
+      <span className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">{label}</span>
       <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
     </div>
   );
@@ -48,7 +49,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     let mounted = true;
-    Promise.all([getLatestForecast(), getLatestData(), getHealth()])
+    waitForBackend()
+      .then(() => Promise.all([getLatestForecast(), getLatestData(), getHealth()]))
       .then(([f, d, h]) => {
         if (!mounted) return;
         setForecast(f); setBaseline(d); setHealth(h);
@@ -146,17 +148,20 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-1.5 pt-1">
+      <div className="grid grid-cols-4 gap-2 pt-1">
         <StatsCard title="Rainfall Today" value={todayData ? `${todayData.rainfall.toFixed(1)} mm` : '—'} subtitle="Observed average" icon="🌧" color="cyan" />
         <StatsCard title="Max Temp" value={todayData ? `${todayData.max_temp.toFixed(1)}°C` : '—'} subtitle="Observed average" icon="☀" color="amber" />
         <StatsCard title="Min Temp" value={todayData ? `${todayData.min_temp.toFixed(1)}°C` : '—'} subtitle="Observed average" icon="🌙" color="violet" />
-        <StatsCard title="D+1 Forecast" value={currentDay ? `${avg(variable === 'rainfall' ? currentDay.rainfall : variable === 'max_temp' ? currentDay.max_temp : currentDay.min_temp).toFixed(1)}` : '—'} subtitle={`${VARIABLES.find(v => v.id === variable)?.label}`} icon="📈" color="emerald" />
+        <StatsCard title="D+1 Forecast" value={currentDay ? `${avg(variable === 'rainfall' ? currentDay.rainfall : variable === 'max_temp' ? currentDay.max_temp : currentDay.min_temp).toFixed(1)} ${variable === 'rainfall' ? 'mm' : '°C'}` : '—'} subtitle={`${VARIABLES.find(v => v.id === variable)?.label}`} icon="📈" color="emerald" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
         <div className="bg-slate-900 rounded-lg border border-slate-800">
           <div className="flex items-center justify-between px-3 pt-2 pb-1">
-            <h2 className="text-xs font-semibold text-white">Weather Watch</h2>
+            <h2 className="text-xs font-bold text-white flex items-center gap-1.5">
+              <span>🌤</span>
+              <span>Weather Watch</span>
+            </h2>
             <VariableSelector variables={VARIABLES} active={variable} onChange={setVariable} />
           </div>
           <WeatherMap data={getGrid()} variable={variable} title="Current Conditions" />
@@ -164,12 +169,11 @@ export default function Dashboard() {
 
         <div id="forecast" className="bg-slate-900 rounded-lg border border-slate-800">
           <div className="flex items-center justify-between px-3 pt-2 pb-1">
-            <h2 className="text-xs font-semibold text-white">
-              D+{activeDay + 1} Forecast
+            <h2 className="text-xs font-bold text-white flex items-center gap-1.5">
+              <span>📅</span>
+              <span>D+{activeDay + 1} Forecast</span>
             </h2>
-            <span className="text-[10px] text-slate-500">
-              {variable === 'rainfall' ? 'Rainfall (mm)' : variable === 'max_temp' ? 'Max Temp (°C)' : 'Min Temp (°C)'}
-            </span>
+            <VariableSelector variables={VARIABLES} active={variable} onChange={setVariable} />
           </div>
           <WeatherMap data={getForecastGrid()} variable={variable} title={`D+${activeDay + 1}`} />
           <div className="px-3 pb-2 pt-1">
@@ -178,17 +182,18 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <SectionDivider label="What-If Simulation" />
+      <SectionDivider label="What-If Simulation" emoji="🔮" />
       <div id="simulation" className="grid grid-cols-1 lg:grid-cols-2 gap-2">
         <div className="bg-slate-900 rounded-lg border border-slate-800">
           <div className="flex items-center justify-between px-3 pt-2 pb-1">
             <div className="flex gap-1">
-              {(['perturbed', 'difference'] as const).map((mode) => (
+              {(['baseline', 'perturbed', 'difference'] as const).map((mode) => (
                 <button key={mode} onClick={() => setSimViewMode(mode)}
-                  className={`px-2 py-0.5 text-[10px] rounded-lg font-medium transition-colors ${simViewMode === mode ? 'bg-amber-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-                  {mode === 'perturbed' ? 'Perturbed' : 'vs Baseline'}
+                  className={`px-2.5 py-1 text-[10px] rounded-lg font-bold transition-all duration-200 ${simViewMode === mode ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                  {mode === 'baseline' ? '📊 Normal' : mode === 'perturbed' ? '🔮 Changed' : '⚖️ Difference'}
                 </button>
               ))}
+              <VariableSelector variables={VARIABLES} active={variable} onChange={setVariable} />
             </div>
             <div className="flex items-center gap-1 text-[10px]">
               {simResult && (

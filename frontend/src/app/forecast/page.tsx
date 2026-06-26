@@ -61,8 +61,8 @@ export default function ForecastPage() {
   return (
     <div className="space-y-2">
       <div>
-        <h1 className="text-lg font-bold text-white">7-Day Forecast</h1>
-        <p className="text-slate-400 text-[10px] mt-0.5">ConvLSTM-based rolling predictions for Andhra Pradesh</p>
+        <h1 className="text-xl font-bold text-white flex items-center gap-2">📅 7-Day Forecast</h1>
+        <p className="text-slate-400 text-xs mt-0.5">AI-powered weather predictions for Andhra Pradesh — see what's coming</p>
       </div>
 
       <div className="grid grid-cols-3 gap-1.5">
@@ -73,8 +73,9 @@ export default function ForecastPage() {
 
       <div className="bg-slate-900 rounded-lg border border-slate-800">
         <div className="flex items-center justify-between px-3 pt-2 pb-1">
-          <h2 className="text-xs font-semibold text-white">
-            {activeDay === -1 ? 'Baseline' : `Day +${activeDay + 1}`}
+          <h2 className="text-xs font-bold text-white flex items-center gap-1.5">
+            <span>🌍</span>
+            <span>{activeDay === -1 ? 'Baseline' : `Day +${activeDay + 1}`}</span>
           </h2>
           <VariableSelector variables={VARIABLES} active={variable} onChange={setVariable} />
         </div>

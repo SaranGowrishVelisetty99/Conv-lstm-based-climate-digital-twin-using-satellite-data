@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getValidationMetrics, getComparisonData } from '@/lib/api';
+import { getValidationMetrics, getComparisonData, waitForBackend } from '@/lib/api';
 import MetricsChart from '@/components/MetricsChart';
 import StatsCard from '@/components/StatsCard';
 import WeatherMap from '@/components/WeatherMap';
@@ -27,16 +27,18 @@ export default function ValidationPage() {
   const fetchData = () => {
     setLoading(true);
     setError(null);
-    Promise.all([
-      getValidationMetrics(),
-      getComparisonData(),
-    ]).then(([m, c]) => {
-      setMetrics(m.metrics);
-      const key = variable as 'rainfall' | 'max_temp' | 'min_temp';
-      setComparison({ predicted: c[key].predicted, observed: c[key].observed });
-    }).catch((e: Error) => {
-      setError(e.message || 'Failed to load validation data');
-    }).finally(() => setLoading(false));
+    waitForBackend()
+      .then(() => Promise.all([
+        getValidationMetrics(),
+        getComparisonData(),
+      ]))
+      .then(([m, c]) => {
+        setMetrics(m.metrics);
+        const key = variable as 'rainfall' | 'max_temp' | 'min_temp';
+        setComparison({ predicted: c[key].predicted, observed: c[key].observed });
+      }).catch((e: Error) => {
+        setError(e.message || 'Failed to load validation data');
+      }).finally(() => setLoading(false));
   };
 
   useEffect(() => { fetchData(); }, [variable]);
@@ -75,13 +77,13 @@ export default function ValidationPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       <div>
-        <h1 className="text-2xl font-bold text-white">Model Validation</h1>
-        <p className="text-slate-400 text-sm mt-1">ConvLSTM prediction performance against IMD observations</p>
+        <h1 className="text-xl font-bold text-white flex items-center gap-2">✅ Model Validation</h1>
+        <p className="text-slate-400 text-xs mt-0.5">How accurate are our predictions? Compare AI forecasts against real observations</p>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-4 gap-2">
         <StatsCard title="RMSE" value={metrics ? metrics.rmse.toFixed(3) : '—'} subtitle="Lower is better" icon="✓" color={metrics && metrics.rmse < 10 ? 'emerald' : 'amber'} />
         <StatsCard title="MAE" value={metrics ? metrics.mae.toFixed(3) : '—'} subtitle="Mean absolute error" icon="✓" color="cyan" />
         <StatsCard title="R² Score" value={metrics ? metrics.r_squared.toFixed(3) : '—'} subtitle="Closer to 1 is better" icon="↗" color={metrics && metrics.r_squared > 0.5 ? 'emerald' : 'amber'} />
@@ -90,16 +92,16 @@ export default function ValidationPage() {
 
       <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-white">Predicted vs Observed</h2>
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">🎯 Predicted vs Observed</h2>
           <VariableSelector variables={VARIABLES} active={variable} onChange={setVariable} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div>
-            <h3 className="text-sm text-slate-400 mb-2">Predicted</h3>
+            <h3 className="text-sm text-white font-bold mb-2 flex items-center gap-1.5">🤖 AI Prediction</h3>
             <WeatherMap data={comparison?.predicted ?? null} variable={variable} height={300} />
           </div>
           <div>
-            <h3 className="text-sm text-slate-400 mb-2">Observed (IMD)</h3>
+            <h3 className="text-sm text-white font-bold mb-2 flex items-center gap-1.5">📡 Real Observation</h3>
             <WeatherMap data={comparison?.observed ?? null} variable={variable} height={300} />
           </div>
         </div>

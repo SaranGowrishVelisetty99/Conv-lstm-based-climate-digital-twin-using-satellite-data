@@ -70,8 +70,8 @@ export default function SimulationPage() {
   return (
     <div className="space-y-2">
       <div>
-        <h1 className="text-lg font-bold text-white">What-If Simulation</h1>
-        <p className="text-slate-400 text-[10px] mt-0.5">Explore climate scenarios by perturbing temperature and rainfall inputs</p>
+        <h1 className="text-xl font-bold text-white flex items-center gap-2">🔮 What-If Simulation</h1>
+        <p className="text-slate-400 text-xs mt-0.5">See how climate changes affect Andhra Pradesh — tweak temperature & rainfall to explore scenarios</p>
       </div>
 
       {error && (
@@ -92,8 +92,8 @@ export default function SimulationPage() {
             <div className="flex gap-1">
               {(['baseline', 'perturbed', 'difference'] as const).map((mode) => (
                 <button key={mode} onClick={() => setViewMode(mode)}
-                  className={`px-2 py-0.5 text-[10px] rounded font-medium transition-colors ${viewMode === mode ? 'bg-cyan-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-                  {mode === 'baseline' ? 'Baseline' : mode === 'perturbed' ? 'Perturbed' : 'Diff'}
+                  className={`px-2.5 py-1 text-[10px] rounded-lg font-bold transition-all duration-200 ${viewMode === mode ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                  {mode === 'baseline' ? '📊 Normal' : mode === 'perturbed' ? '🔮 Changed' : '⚖️ Difference'}
                 </button>
               ))}
             </div>

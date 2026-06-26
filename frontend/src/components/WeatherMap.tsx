@@ -5,6 +5,13 @@ import { AP_BOUNDS, GRID_ROWS, GRID_COLS } from '@/lib/geo';
 import { getColorForValue } from '@/lib/colors';
 import AP_OUTLINE from '@/lib/apOutline';
 
+const VAR_META: Record<string, { emoji: string; label: string; unit: string }> = {
+  rainfall: { emoji: '\uD83C\uDF27\uFE0F', label: 'Rainfall', unit: 'mm' },
+  max_temp: { emoji: '\uD83D\uDD25', label: 'Max Temp', unit: '\u00B0C' },
+  min_temp: { emoji: '\u2744\uFE0F', label: 'Min Temp', unit: '\u00B0C' },
+  temperature: { emoji: '\uD83C\uDF21\uFE0F', label: 'Temperature', unit: '\u00B0C' },
+};
+
 interface WeatherMapProps {
   data: number[][] | null;
   variable: string;
@@ -264,7 +271,8 @@ function renderOverlays(mainCtx: CanvasRenderingContext2D, w: number, h: number,
     const ci = Math.min(GRID_COLS - 1, Math.max(0, Math.floor((d.lon - AP_BOUNDS.lon_min) / (AP_BOUNDS.lon_max - AP_BOUNDS.lon_min) * GRID_COLS)));
     const ri = Math.min(GRID_ROWS - 1, Math.max(0, Math.floor((AP_BOUNDS.lat_max - d.lat) / (AP_BOUNDS.lat_max - AP_BOUNDS.lat_min) * GRID_ROWS)));
     const val = data[ri]?.[ci] ?? 0;
-    const label = variable === 'rainfall' ? `${val.toFixed(0)}mm` : `${val.toFixed(1)}°`;
+    const meta = VAR_META[variable] ?? VAR_META.rainfall;
+    const label = `${meta.emoji} ${val.toFixed(variable === 'rainfall' ? 0 : 1)}${meta.unit}`;
 
     mainCtx.save();
     mainCtx.shadowColor = 'rgba(0,0,0,0.8)';
@@ -318,7 +326,8 @@ function renderOverlays(mainCtx: CanvasRenderingContext2D, w: number, h: number,
   mainCtx.font = '9px system-ui, sans-serif';
   mainCtx.textAlign = 'left';
   mainCtx.textBaseline = 'bottom';
-  mainCtx.fillText(variable === 'rainfall' ? 'Rainfall (mm)' : 'Temp (°C)', legendX, legendY - 4);
+  const meta = VAR_META[variable] ?? VAR_META.rainfall;
+  mainCtx.fillText(`${meta.emoji} ${meta.label} (${meta.unit})`, legendX, legendY - 4);
 
   const lgrad = mainCtx.createLinearGradient(0, legendY, 0, legendY + legendH);
   const steps = 32;
@@ -437,10 +446,11 @@ export default function WeatherMap({ data, variable, title, height = 500 }: Weat
               const [cx, cy] = toCanvas(cellLat, cellLon, curVp);
               const intensity = Math.min(val / 50, 1);
               const pulse = 0.7 + 0.3 * Math.sin(timeRef.current * 3 + r * 1.2 + col * 1.8);
-              const spread = (2 + intensity * 6) * pulse;
+              const spread = (3 + intensity * 10) * pulse;
               const grad = c.createRadialGradient(cx, cy, 0, cx, cy, spread);
-              grad.addColorStop(0, `rgba(100,180,255,${intensity * 0.08 * pulse})`);
-              grad.addColorStop(1, `rgba(100,180,255,0)`);
+              grad.addColorStop(0, `rgba(100,200,255,${intensity * 0.15 * pulse})`);
+              grad.addColorStop(0.5, `rgba(80,180,255,${intensity * 0.06 * pulse})`);
+              grad.addColorStop(1, `rgba(80,180,255,0)`);
               c.fillStyle = grad;
               c.beginPath();
               c.arc(cx, cy, spread, 0, Math.PI * 2);
@@ -449,7 +459,7 @@ export default function WeatherMap({ data, variable, title, height = 500 }: Weat
           }
         }
 
-        const targetCount = Math.min(200, Math.floor(mw * mh / 2000));
+        const targetCount = Math.min(300, Math.floor(mw * mh / 1200));
         while (particles.length < targetCount) {
           const x = curVp.ox + PAD + Math.random() * mw;
           const y = curVp.oy + PAD + Math.random() * mh;
@@ -461,10 +471,10 @@ export default function WeatherMap({ data, variable, title, height = 500 }: Weat
           const intensity = val / maxVal;
           particles.push({
             x, y,
-            speed: 300 + intensity * 400 + Math.random() * 200,
-            opacity: 0.15 + intensity * 0.5,
-            length: 8 + intensity * 20,
-            lifetime: 0.8 + Math.random() * 0.4,
+            speed: 200 + intensity * 500 + Math.random() * 150,
+            opacity: 0.2 + intensity * 0.6,
+            length: 10 + intensity * 25,
+            lifetime: 1.0 + Math.random() * 0.5,
           });
         }
 
@@ -475,33 +485,52 @@ export default function WeatherMap({ data, variable, title, height = 500 }: Weat
           p.y += p.speed * dt;
           if (p.y > curVp.oy + PAD + mh + 10) { particles.splice(i, 1); continue; }
           const alpha = p.opacity * Math.min(p.lifetime / 0.2, 1);
+          c.save();
+          c.translate(p.x, p.y);
+          c.rotate(0.2);
           c.beginPath();
-          c.moveTo(p.x, p.y);
-          c.lineTo(p.x + 1.5, p.y - p.length);
-          c.strokeStyle = `rgba(180,220,255,${alpha})`;
-          c.lineWidth = 1.2;
-          c.stroke();
+          c.moveTo(0, 0);
+          c.quadraticCurveTo(-3, -p.length * 0.5, 0, -p.length);
+          c.quadraticCurveTo(3, -p.length * 0.5, 0, 0);
+          c.closePath();
+          const grd = c.createLinearGradient(0, 0, 0, -p.length);
+          grd.addColorStop(0, `rgba(180,220,255,${alpha * 0.3})`);
+          grd.addColorStop(0.6, `rgba(160,210,255,${alpha * 0.8})`);
+          grd.addColorStop(1, `rgba(200,235,255,${alpha})`);
+          c.fillStyle = grd;
+          c.fill();
+          c.restore();
         }
       }
 
-      if (curData && (curVar.startsWith('max_temp') || curVar === 'temperature')) {
+      if (curData && (curVar === 'max_temp' || curVar === 'min_temp' || curVar === 'temperature')) {
         const allVals = curData.flat();
-        const maxVal = Math.max(...allVals) || 1;
+        const minVal = Math.min(...allVals);
+        const maxVal = Math.max(...allVals);
+        const range = maxVal - minVal || 1;
         for (let r = 0; r < GRID_ROWS; r++) {
           for (let col = 0; col < GRID_COLS; col++) {
             const val = curData[r]?.[col] ?? 0;
-            const intensity = val / maxVal;
-            if (intensity > 0.4) {
+            const intensity = (val - minVal) / range;
+            if (intensity > 0.35) {
               const cellLat = AP_BOUNDS.lat_max - (r + 0.5) * (AP_BOUNDS.lat_max - AP_BOUNDS.lat_min) / GRID_ROWS;
               const cellLon = AP_BOUNDS.lon_min + (col + 0.5) * (AP_BOUNDS.lon_max - AP_BOUNDS.lon_min) / GRID_COLS;
               if (!pointInPolygon(cellLat, cellLon, AP_OUTLINE)) continue;
               const [cx, cy] = toCanvas(cellLat, cellLon, vp);
-              const pulse = 0.5 + 0.5 * Math.sin(timeRef.current * 2 + r * 0.5 + col * 0.7);
-              const radius = (intensity - 0.3) * 35 * (0.8 + 0.2 * pulse);
-              const alpha = (intensity - 0.3) * 0.12 * pulse;
+              const pulse = 0.4 + 0.6 * Math.sin(timeRef.current * 2.5 + r * 0.7 + col * 0.9);
+              const heat = (intensity - 0.35) / 0.65;
+              const radius = heat * 50 * (0.7 + 0.3 * pulse);
+              const alpha = heat * 0.18 * pulse;
               const grad = c.createRadialGradient(cx, cy, 0, cx, cy, radius);
-              grad.addColorStop(0, `rgba(255,200,100,${alpha})`);
-              grad.addColorStop(1, `rgba(255,200,100,0)`);
+              if (curVar === 'max_temp') {
+                grad.addColorStop(0, `rgba(255,160,60,${alpha})`);
+                grad.addColorStop(0.5, `rgba(255,80,30,${alpha * 0.5})`);
+                grad.addColorStop(1, `rgba(255,80,30,0)`);
+              } else {
+                grad.addColorStop(0, `rgba(120,180,255,${alpha})`);
+                grad.addColorStop(0.5, `rgba(80,150,230,${alpha * 0.5})`);
+                grad.addColorStop(1, `rgba(80,150,230,0)`);
+              }
               c.fillStyle = grad;
               c.beginPath();
               c.arc(cx, cy, radius, 0, Math.PI * 2);
@@ -551,14 +580,15 @@ export default function WeatherMap({ data, variable, title, height = 500 }: Weat
       <canvas ref={canvasRef} className="w-full block" />
       {title && (
         <div className="absolute top-3 left-3">
-          <div className="bg-cyan-500/15 backdrop-blur-sm text-cyan-300 text-xs font-semibold px-2.5 py-1 rounded-md border border-cyan-500/20 tracking-wide">
-            {title}
+          <div className="bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-white/10 shadow-lg tracking-wide flex items-center gap-1.5">
+            <span>{VAR_META[variable]?.emoji ?? ''}</span>
+            <span>{title}</span>
           </div>
         </div>
       )}
-      <div className="absolute top-3 right-3">
-        <div className="bg-black/40 backdrop-blur-sm text-white/40 text-[10px] px-2 py-1 rounded font-mono border border-white/5">
-          {GRID_ROWS}×{GRID_COLS}
+      <div className="absolute top-3 right-3 flex gap-1.5">
+        <div className="bg-black/40 backdrop-blur-sm text-white/50 text-[10px] px-2 py-1 rounded font-mono border border-white/5">
+          {GRID_ROWS}×{GRID_COLS} km
         </div>
       </div>
     </div>
